@@ -257,21 +257,20 @@ function loop(now) {
   // Dragon Fire Breath (massive AoE damage)
   nextFireIn -= dt;
   if (nextFireIn <= 3 && nextFireIn > 0) document.getElementById('fire-warn').style.display = 'block';
-  if (nextFireIn <= 0) {
+   if (nextFireIn <= 0) {
     document.getElementById('fire-warn').style.display = 'none';
     fireBreathTimer = 2.0; nextFireIn = 35;
     Object.keys(players).forEach(id => {
       const p = players[id];
-      const fireDmg = 85 + bossIdx * 30;
-      p.hp -= fireDmg;
-      if (p.hp <= 0) {
-        addFloat("🔥 Brûlé!", p.x, p.y, '#ff5252');
+      if (p.lvl < 2) {
+        addFloat("🔥 Brûlé (Niv < 2)!", p.x, p.y, '#ff5252');
         delete players[id];
       } else {
-        addFloat(`-${fireDmg} PV (Survit!)`, p.x, p.y - 10, '#7dff9b');
+        addFloat("🛡️ Survit (Niv 2+)!", p.x, p.y - 10, '#7dff9b');
       }
     });
-  }
+   }
+  
   if (fireBreathTimer > 0) fireBreathTimer -= dt;
 
   const pList = Object.values(players);
