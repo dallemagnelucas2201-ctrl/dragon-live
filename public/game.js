@@ -330,6 +330,5 @@ const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
 document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => <div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>).join('') || 'En attente...';
 const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
 document.getElementById('top-gold').innerHTML = byGold.map((p, i) => <div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>).join('') || 'En attente...';
-requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);         
