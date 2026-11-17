@@ -38,11 +38,12 @@ socket.on('status', (res) => {
 
 function spawnOrGetPlayer(userId, nickname, gender = 'M') {
   if (!players[userId]) {
+    const homeX = 35 + Math.random() * (canvas.width - 70);
+    const homeY = canvas.height * 0.56 + Math.random() * (canvas.height * 0.34);
     players[userId] = {
       id: userId, name: nickname.slice(0, 10), gender, lvl: 0, aura: 1, gold: 0, totalDmg: 0,
-      x: 35 + Math.random() * (canvas.width - 70),
-      y: canvas.height * 0.56 + Math.random() * (canvas.height * 0.36),
-      atkCd: Math.random(), swing: 0
+      x: canvas.width / 2, y: canvas.height + 20, homeX, homeY,
+      state: 'walk', atkCd: 1 + Math.random() * 2, swing: 0
     };
   }
   return players[userId];
@@ -52,7 +53,7 @@ function addFloat(text, x, y, color = '#ffd54f') { floatTexts.push({ text, x, y,
 function damageBoss(amount, player) {
   const finalDmg = Math.round(amount * (heartRainTimer > 0 ? 2 : 1));
   bossHp -= finalDmg; hitFlash = 0.1;
-  if (player) { player.totalDmg += finalDmg; player.gold += finalDmg; player.swing = 0.25; }
+  if (player) { player.totalDmg += finalDmg; player.gold += finalDmg; player.swing = 0.35; }
   if (bossHp <= 0) {
     bossIdx = (bossIdx + 1) % BOSSES.length;
     bossHp = BOSSES[bossIdx].maxHp;
@@ -96,19 +97,25 @@ socket.on('gift', (d) => {
 
 function startDemo() {
   document.getElementById('setup-modal').style.display = 'none';
-  ['Yanis', 'Chloe', 'Sarah', 'Mehdi', 'Lina', 'Theo', 'Ines', 'Max'].forEach((n, i) => {
-    const p = spawnOrGetPlayer('bot' + i, n, i % 2 === 0 ? 'M' : 'F');
-    p.lvl = i % 6; p.aura = 3 + i * 4;
-  });
+  const pool = ['Yanis', 'Chloe', 'Sarah', 'Mehdi', 'Lina', 'Theo', 'Ines', 'Max', 'Kylian', 'Emma', 'Nolan', 'Jade', 'Sami', 'Zoe', 'Adam', 'Lou'];
+  let idx = 0;
   setInterval(() => {
+    if (Object.keys(players).length < 18) {
+      const name = pool[idx % pool.length];
+      const p = spawnOrGetPlayer('bot' + idx, name, idx % 2 === 0 ? 'M' : 'F');
+      p.lvl = idx % 7; p.aura = 2 + (idx % 12);
+      addFloat("⚔️ GO!", p.x, p.y - 25, '#fff');
+      idx++;
+    }
     const keys = Object.keys(players);
-    if (!keys.length) return;
-    players[keys[Math.floor(Math.random() * keys.length)]].aura += 2;
-    heartLikes += 15;
-    if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 12; }
-  }, 800);
-  }
- function drawDragon(cx, y, t, boss) {
+    if (keys.length) {
+      players[keys[Math.floor(Math.random() * keys.length)]].aura += 2;
+      heartLikes += 18;
+      if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 12; }
+    }
+  }, 1100);
+      }
+function drawDragon(cx, y, t, boss) {
   const breath = Math.sin(t * 3) * 4;
   const flap = Math.sin(t * 4.5) * 14;
   ctx.save();
@@ -157,7 +164,7 @@ function startDemo() {
 }
 
 function drawKnight(p, t) {
-  const bob = Math.sin(t * 7 + p.x) * 2;
+  const bob = Math.abs(Math.sin(t * 10 + p.x)) * (p.state === 'charge' ? 5 : 2);
   const col = LEVEL_COLORS[p.lvl] || '#8d6e63';
   ctx.save();
   if (p.aura >= 3) {
@@ -168,27 +175,27 @@ function drawKnight(p, t) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(p.x, p.y + 12, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = p.gender === 'F' ? '#e91e63' : '#b71c1c';
-  ctx.beginPath(); ctx.moveTo(p.x - 8, p.y - 6 + bob); ctx.lineTo(p.x - 13, p.y + 10); ctx.lineTo(p.x + 13, p.y + 10); ctx.lineTo(p.x + 8, p.y - 6 + bob); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(p.x - 8, p.y - 6 - bob); ctx.lineTo(p.x - 13, p.y + 10); ctx.lineTo(p.x + 13, p.y + 10); ctx.lineTo(p.x + 8, p.y - 6 - bob); ctx.fill();
   ctx.fillStyle = col;
-  ctx.beginPath(); ctx.roundRect(p.x - 8, p.y - 8 + bob, 16, 18, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(p.x - 8, p.y - 8 - bob, 16, 18, 4); ctx.fill();
   ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2; ctx.stroke();
   ctx.fillStyle = p.gender === 'F' ? '#f48fb1' : '#ff5252';
-  ctx.beginPath(); ctx.ellipse(p.x, p.y - 19 + bob, 4, 6, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(p.x, p.y - 19 - bob, 4, 6, 0.3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = col;
-  ctx.beginPath(); ctx.arc(p.x, p.y - 12 + bob, 7.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#111'; ctx.fillRect(p.x - 5, p.y - 13 + bob, 10, 3);
+  ctx.beginPath(); ctx.arc(p.x, p.y - 12 - bob, 7.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#111'; ctx.fillRect(p.x - 5, p.y - 13 - bob, 10, 3);
   ctx.fillStyle = '#37474f';
-  ctx.beginPath(); ctx.arc(p.x - 9, p.y + bob, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x - 9, p.y - bob, 6, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.5; ctx.stroke();
-  const ang = p.swing > 0 ? -0.9 : -0.2;
-  ctx.save(); ctx.translate(p.x + 9, p.y + bob); ctx.rotate(ang);
+  const ang = p.swing > 0 ? -1.1 : -0.2;
+  ctx.save(); ctx.translate(p.x + 9, p.y - bob); ctx.rotate(ang);
   ctx.fillStyle = '#eceff1'; ctx.fillRect(-1.5, -16, 3, 16);
   ctx.fillStyle = '#ffd54f'; ctx.fillRect(-4, -2, 8, 2.5);
   ctx.restore();
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.beginPath(); ctx.roundRect(p.x - 26, p.y - 35, 52, 11, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(p.x - 26, p.y - 35 - bob, 52, 11, 4); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 8.5px Arial'; ctx.textAlign = 'center';
-  ctx.fillText(p.name, p.x, p.y - 26.5);
+  ctx.fillText(p.name, p.x, p.y - 26.5 - bob);
   ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 8px Arial';
   ctx.fillText(`Niv${p.lvl} ⚡${p.aura}`, p.x, p.y + 21);
   ctx.restore();
@@ -214,13 +221,18 @@ function loop(now) {
   const pList = Object.values(players);
   pList.forEach(p => {
     if (p.swing > 0) p.swing -= dt;
-    p.atkCd -= dt;
-    if (p.atkCd <= 0) {
-      p.atkCd = 1.0;
+    let tx = p.homeX, ty = p.homeY, spd = 110;
+    if (p.state === 'charge') { tx = canvas.width / 2 + (p.homeX - canvas.width / 2) * 0.35; ty = canvas.height * 0.34; spd = 280; }
+    const dx = tx - p.x, dy = ty - p.y, dist = Math.hypot(dx, dy);
+    if (dist > 4) { p.x += (dx / dist) * spd * dt; p.y += (dy / dist) * spd * dt; }
+    else if (p.state === 'charge') {
       const dmg = (1 + p.lvl * 2) * (1 + p.aura * 0.1);
       damageBoss(dmg, p);
-      if (Math.random() < 0.4) addFloat(`-${dmg.toFixed(1)}`, canvas.width * 0.35 + Math.random() * (canvas.width * 0.3), canvas.height * 0.22 + Math.random() * 35, '#ffd54f');
+      addFloat(`-${dmg.toFixed(1)}`, p.x, p.y - 20, '#ffd54f');
+      p.state = 'walk';
     }
+    p.atkCd -= dt;
+    if (p.atkCd <= 0 && p.state === 'walk') { p.atkCd = 1.8 + Math.random() * 1.5; p.state = 'charge'; }
   });
 
   const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
