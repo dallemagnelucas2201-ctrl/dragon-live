@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Le Dragon au Million</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { background: #140f1d; color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+  #game-wrap { width: 100%; max-width: 450px; height: 100vh; background: linear-gradient(180deg, #1b1326 0%, #2a1d36 55%, #1e1926 100%); display: flex; flex-direction: column; position: relative; border-left: 1px solid #333; border-right: 1px solid #333; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; gap: 6px; background: rgba(0,0,0,0.4); }
+  .title-box { font-weight: 900; font-size: 13px; color: #7dff9b; line-height: 1.1; }
+  .boss-badge { background: #262135; border: 1.5px solid #ffd54f; border-radius: 8px; padding: 4px 12px; text-align: center; }
+  .boss-badge .lvl { font-weight: 900; font-size: 14px; }
+  .boss-badge .name { font-size: 10px; color: #ffd54f; font-weight: 700; }
+  .queue-badge { background: #262135; border: 1px solid #555; border-radius: 8px; padding: 4px 10px; text-align: center; }
+  .queue-badge .num { font-weight: 900; font-size: 14px; }
+  .queue-badge .lbl { font-size: 9px; color: #aaa; }
+  .hp-container { margin: 4px 10px; background: #2b1116; border: 2px solid #ff5252; border-radius: 12px; height: 22px; position: relative; overflow: hidden; }
+  .hp-fill { height: 100%; background: linear-gradient(90deg, #b71c1c, #ff5252); width: 100%; transition: width 0.2s; }
+  .hp-text { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 12px; text-shadow: 1px 1px 2px #000; }
+  .promo-banner { margin: 4px 10px; background: linear-gradient(90deg, #ff9800, #ffc107); color: #1a1000; font-weight: 900; font-size: 12px; text-align: center; padding: 5px; border-radius: 10px; }
+  .heart-bar { margin: 2px 25px; background: #2b1528; border: 1px solid #ff4081; border-radius: 10px; height: 14px; position: relative; overflow: hidden; }
+  .heart-fill { height: 100%; background: linear-gradient(90deg, #c2185b, #ff4081); width: 0%; }
+  .heart-text { position: absolute; inset: 0; font-size: 9px; font-weight: 800; display: flex; justify-content: center; align-items: center; }
+  #arena { flex: 1; width: 100%; display: block; }
+  #gift-alert { position: absolute; top: 135px; left: 10px; right: 10px; background: rgba(20, 12, 30, 0.92); border: 2px solid #ffd54f; border-radius: 12px; padding: 8px; text-align: center; display: none; z-index: 10; }
+  #gift-alert h3 { color: #ffd54f; font-size: 15px; }
+  #gift-alert p { font-size: 11px; color: #80cbc4; margin-top: 2px; }
+  #fire-warn { position: absolute; top: 180px; left: 0; right: 0; text-align: center; font-size: 22px; font-weight: 900; color: #ff5722; text-shadow: 0 0 10px #000; display: none; z-index: 9; }
+  .tiers-bar { display: flex; justify-content: space-between; gap: 4px; padding: 4px 8px; background: rgba(0,0,0,0.5); }
+  .tier-card { flex: 1; background: #231d30; border: 1px solid #444; border-radius: 6px; padding: 4px 2px; text-align: center; font-size: 9px; }
+  .tier-card b { display: block; color: #ffd54f; font-size: 10px; }
+  .boards { display: flex; gap: 6px; padding: 6px 8px 10px; background: #120e1a; font-size: 10px; }
+  .board { flex: 1; background: #1c1626; border-radius: 8px; padding: 5px 7px; border: 1px solid #2e253d; }
+  .board h4 { color: #ffd54f; font-size: 10px; margin-bottom: 3px; text-align: center; }
+  .board-row { display: flex; justify-content: space-between; padding: 1px 0; }
+  #setup-modal { position: absolute; inset: 0; background: rgba(10, 8, 16, 0.95); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+  #setup-modal h2 { color: #ffd54f; margin-bottom: 8px; }
+  #setup-modal p { font-size: 12px; color: #bbb; margin-bottom: 15px; }
+  #setup-modal input { width: 85%; padding: 12px; border-radius: 10px; border: 2px solid #ffd54f; background: #1e182b; color: #fff; font-size: 15px; text-align: center; margin-bottom: 10px; }
+  #setup-modal button { width: 85%; padding: 12px; border-radius: 10px; border: none; background: #ff9800; color: #000; font-weight: 900; font-size: 15px; margin-bottom: 8px; }
+  #setup-modal button.demo { background: #37474f; color: #fff; font-size: 12px; }
+  #status-msg { font-size: 12px; color: #ff5252; margin-top: 8px; }
+  #open-setup { position: absolute; bottom: 4px; right: 6px; background: rgba(255,255,255,0.1); border: none; color: #aaa; font-size: 10px; padding: 2px 6px; border-radius: 4px; z-index: 20; }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+  <div class="top-bar">
+    <div class="title-box">🐉 LE DRAGON<br>AU MILLION</div>
+    <div class="boss-badge"><div class="lvl" id="boss-lvl">NIVEAU 1</div><div class="name" id="boss-name">IGNIS</div></div>
+    <div class="queue-badge"><div class="num" id="queue-count">0</div><div class="lbl">⚔️ CHEVALIERS</div></div>
+  </div>
+  <div class="hp-container"><div class="hp-fill" id="hp-fill"></div><div class="hp-text" id="hp-text">1 000 000 / 1 000 000 PV</div></div>
+  <div class="promo-banner" id="promo-text">💬 ÉCRIS « GO » (OU M / F) POUR COMBATTRE !</div>
+  <div class="heart-bar"><div class="heart-fill" id="heart-fill"></div><div class="heart-text" id="heart-text">❤️ 0 / 500 • PLUIE DE CŒURS</div></div>
+  <div id="gift-alert"><h3 id="gift-title">🎁 MERCI !</h3><p id="gift-desc">Bonus activé !</p></div>
+  <div id="fire-warn">🔥 ATTENTION ! SOUFFLE DE FEU ! 🔥</div>
+  <canvas id="arena"></canvas>
+  <div class="tiers-bar">
+    <div class="tier-card">Niv1 Recrue<b>100 🪙</b></div>
+    <div class="tier-card">Niv2 Soldat<b>300 🪙</b></div>
+    <div class="tier-card">Niv4 Acier<b>2.0k 🪙</b></div>
+    <div class="tier-card">Niv7 Paladin<b>30k 🪙</b></div>
+    <div class="tier-card">Niv9 Roi<b>160k 🪙</b></div>
+  </div>
+  <div class="boards">
+    <div class="board"><h4>⚔️ TOP DÉGÂTS</h4><div id="top-dmg"></div></div>
+    <div class="board"><h4>💰 LES PLUS RICHES</h4><div id="top-gold"></div></div>
+  </div>
+  <button id="open-setup" onclick="document.getElementById('setup-modal').style.display='flex'">⚙️</button>
+  <div id="setup-modal">
+    <h2>🐉 LE DRAGON AU MILLION</h2>
+    <p>1. Lance ton LIVE TikTok en mode Jeu Mobile.<br>2. Entre ton pseudo TikTok ci-dessous :</p>
+    <input type="text" id="tt-user" placeholder="ton_pseudo_tiktok">
+    <button onclick="connectLive()">🔗 CONNECTER AU LIVE TIKTOK</button>
+    <button class="demo" onclick="startDemo()">🎮 TESTER EN MODE DÉMO (BOTS)</button>
+    <div id="status-msg"></div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
