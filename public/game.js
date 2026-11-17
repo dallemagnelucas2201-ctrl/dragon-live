@@ -14,13 +14,13 @@ const LEVEL_COSTS = new Array(0, 100, 300, 800, 2000, 5000, 12000, 30000, 70000,
 const LEVEL_NAMES = ['Paysan', 'Recrue', 'Soldat', 'Chevalier', 'Acier', 'Givre', 'Argent', 'Paladin', 'Champion', 'Roi'];
 const LEVEL_COLORS = ['#8d6e63', '#78909c', '#29b6f6', '#26a69a', '#b0bec5', '#80deea', '#eceff1', '#ffd54f', '#ff7043', '#ab47bc'];
 
-let bossIdx = 0, bossHp = 1000000, heartLikes = 0, heartRainTimer = 0, fireBreathTimer = 0, nextFireIn = 45;
-let players = {}, floatTexts = [], bannerIdx = 0, hitFlash = 0;
+let bossIdx = 0, bossHp = 1000000, heartLikes = 0, heartRainTimer = 0, fireBreathTimer = 0, nextFireIn = 35, bossAtkTimer = 3.5;
+let players = {}, floatTexts = [], bannerIdx = 0, hitFlash = 0, slotCounter = 0;
 const banners = [
   "💬 ÉCRIS « GO » (OU M / F) POUR COMBATTRE !",
-  "❤️ LIKE L'ÉCRAN = AURA DE PUISSANCE (+1 DÉGÂT)",
-  "🪙 TES DÉGÂTS = OR • ÉCRIS « LEVEL UP »",
-  "🎁 CADEAU = NIVEAU OFFERT + GROS DÉGÂTS"
+  "❤️ 1 LIKE = +1 PV • TES 1K LIKES = +100 DÉGÂTS",
+  "🪙 1 PIÈCE = +10 DÉGÂTS • ÉCRIS « LEVEL UP »",
+  "🔥 SURVIS AU SOUFFLE DU DRAGON AVEC TES PV !"
 ];
 setInterval(() => { bannerIdx = (bannerIdx + 1) % banners.length; document.getElementById('promo-text').innerText = banners[bannerIdx]; }, 5000);
 
@@ -38,10 +38,14 @@ socket.on('status', (res) => {
 
 function spawnOrGetPlayer(userId, nickname, gender = 'M') {
   if (!players[userId]) {
-    const homeX = 35 + Math.random() * (canvas.width - 70);
-    const homeY = canvas.height * 0.56 + Math.random() * (canvas.height * 0.34);
+    const col = slotCounter % 5;
+    const row = Math.floor(slotCounter / 5) % 4;
+    slotCounter++;
+    const homeX = 45 + col * ((canvas.width - 90) / 4);
+    const homeY = canvas.height * 0.56 + row * 58;
     players[userId] = {
-      id: userId, name: nickname.slice(0, 10), gender, lvl: 0, aura: 1, gold: 0, totalDmg: 0,
+      id: userId, name: nickname.slice(0, 10), gender, lvl: 0,
+      myLikes: 0, bonusDmg: 0, hp: 100, maxHp: 100, gold: 0, totalDmg: 0,
       x: canvas.width / 2, y: canvas.height + 20, homeX, homeY,
       state: 'walk', atkCd: 1 + Math.random() * 2, swing: 0
     };
@@ -71,26 +75,40 @@ socket.on('chat', (d) => {
     const nextLvl = p.lvl + 1;
     if (nextLvl < LEVEL_COSTS.length && p.gold >= LEVEL_COSTS[nextLvl]) {
       p.gold -= LEVEL_COSTS[nextLvl]; p.lvl = nextLvl;
-      addFloat(`⬆️ NIV ${p.lvl} ${LEVEL_NAMES[p.lvl]}!`, p.x, p.y - 24, '#7dff9b');
-    } else if (nextLvl < LEVEL_COSTS.length) addFloat(`Manque ${LEVEL_COSTS[nextLvl] - p.gold} or`, p.x, p.y - 18, '#ff8a80');
-  } else addFloat("⚔️ GO!", p.x, p.y - 18, '#fff');
+      p.maxHp += 30; p.hp = p.maxHp;
+      addFloat(`⬆️ NIV ${p.lvl} (+30 PV)!`, p.x, p.y - 26, '#7dff9b');
+    } else if (nextLvl < LEVEL_COSTS.length) addFloat(`Manque ${LEVEL_COSTS[nextLvl] - p.gold} or`, p.x, p.y - 20, '#ff8a80');
+  } else addFloat("⚔️ GO!", p.x, p.y - 20, '#fff');
 });
 
 socket.on('like', (d) => {
   const p = spawnOrGetPlayer(d.userId, d.nickname);
-  p.aura += d.count; heartLikes += d.count;
+  const prevMilestones = Math.floor(p.myLikes / 1000);
+  p.myLikes += d.count;
+  const newMilestones = Math.floor(p.myLikes / 1000);
+  if (newMilestones > prevMilestones) {
+    const gained = (newMilestones - prevMilestones) * 100;
+    p.bonusDmg += gained;
+    addFloat(`🔥 1K LIKES: +${gained} DÉGÂTS!`, p.x, p.y - 32, '#ff4081');
+  }
+  p.maxHp += d.count;
+  p.hp = Math.min(p.maxHp, p.hp + d.count);
+  heartLikes += d.count;
   if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 15; addFloat("💖 PLUIE DE CŒURS (x2) !", canvas.width / 2, canvas.height * 0.22, '#ff4081'); }
 });
 
 socket.on('gift', (d) => {
   const p = spawnOrGetPlayer(d.userId, d.nickname);
   p.lvl = Math.min(9, p.lvl + (d.diamonds >= 50 ? 3 : (d.diamonds >= 10 ? 2 : 1)));
-  p.aura += d.diamonds * 5;
+  const addedDmg = d.diamonds * 10;
+  p.bonusDmg += addedDmg;
+  const hpBonus = d.diamonds * 15;
+  p.maxHp += hpBonus; p.hp = p.maxHp;
   const burst = d.diamonds * 250;
   damageBoss(burst, p);
   const alertBox = document.getElementById('gift-alert');
   document.getElementById('gift-title').innerText = `🎁 MERCI ${p.name.toUpperCase()} !`;
-  document.getElementById('gift-desc').innerText = `${d.giftName} • Niv ${p.lvl} (${LEVEL_NAMES[p.lvl]}) • -${burst} PV !`;
+  document.getElementById('gift-desc').innerText = `${d.giftName} • +${addedDmg} DÉGÂTS/COUP • +${hpBonus} PV !`;
   alertBox.style.display = 'block';
   setTimeout(() => { alertBox.style.display = 'none'; }, 3500);
 });
@@ -100,21 +118,24 @@ function startDemo() {
   const pool = ['Yanis', 'Chloe', 'Sarah', 'Mehdi', 'Lina', 'Theo', 'Ines', 'Max', 'Kylian', 'Emma', 'Nolan', 'Jade', 'Sami', 'Zoe', 'Adam', 'Lou'];
   let idx = 0;
   setInterval(() => {
-    if (Object.keys(players).length < 18) {
+    if (Object.keys(players).length < 15) {
       const name = pool[idx % pool.length];
       const p = spawnOrGetPlayer('bot' + idx, name, idx % 2 === 0 ? 'M' : 'F');
-      p.lvl = idx % 7; p.aura = 2 + (idx % 12);
+      p.lvl = idx % 5;
+      const likes = (idx % 12) * 8;
+      p.myLikes = likes; p.maxHp += likes; p.hp = p.maxHp;
       addFloat("⚔️ GO!", p.x, p.y - 25, '#fff');
       idx++;
     }
     const keys = Object.keys(players);
     if (keys.length) {
-      players[keys[Math.floor(Math.random() * keys.length)]].aura += 2;
-      heartLikes += 18;
+      const rp = players[keys[Math.floor(Math.random() * keys.length)]];
+      rp.myLikes += 5; rp.maxHp += 5; rp.hp = Math.min(rp.maxHp, rp.hp + 5);
+      heartLikes += 20;
       if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 12; }
     }
   }, 1100);
-      }
+}
 function drawDragon(cx, y, t, boss) {
   const breath = Math.sin(t * 3) * 4;
   const flap = Math.sin(t * 4.5) * 14;
@@ -167,8 +188,8 @@ function drawKnight(p, t) {
   const bob = Math.abs(Math.sin(t * 10 + p.x)) * (p.state === 'charge' ? 5 : 2);
   const col = LEVEL_COLORS[p.lvl] || '#8d6e63';
   ctx.save();
-  if (p.aura >= 3) {
-    ctx.strokeStyle = p.lvl >= 7 ? '#ffd54f' : '#ff9800';
+  if (p.myLikes >= 100 || p.bonusDmg > 0) {
+    ctx.strokeStyle = p.bonusDmg > 0 ? '#ff4081' : '#ff9800';
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(p.x, p.y + 12, 16, 6, 0, 0, Math.PI * 2); ctx.stroke();
   }
@@ -192,12 +213,19 @@ function drawKnight(p, t) {
   ctx.fillStyle = '#eceff1'; ctx.fillRect(-1.5, -16, 3, 16);
   ctx.fillStyle = '#ffd54f'; ctx.fillRect(-4, -2, 8, 2.5);
   ctx.restore();
+
+  // HP Bar above head
+  const hpPct = Math.max(0, Math.min(1, p.hp / p.maxHp));
+  ctx.fillStyle = '#222'; ctx.fillRect(p.x - 18, p.y - 27 - bob, 36, 4);
+  ctx.fillStyle = hpPct > 0.4 ? '#00e676' : '#ff1744';
+  ctx.fillRect(p.x - 18, p.y - 27 - bob, 36 * hpPct, 4);
+
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.beginPath(); ctx.roundRect(p.x - 26, p.y - 35 - bob, 52, 11, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(p.x - 26, p.y - 40 - bob, 52, 11, 4); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 8.5px Arial'; ctx.textAlign = 'center';
-  ctx.fillText(p.name, p.x, p.y - 26.5 - bob);
-  ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 8px Arial';
-  ctx.fillText(`Niv${p.lvl} ⚡${p.aura}`, p.x, p.y + 21);
+  ctx.fillText(p.name, p.x, p.y - 31.5 - bob);
+  ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 7.5px Arial';
+  ctx.fillText(`❤️${Math.round(p.hp)} ⚔️${Math.round(1 + p.lvl * 2 + p.bonusDmg)}`, p.x, p.y + 22);
   ctx.restore();
 }
 
@@ -207,13 +235,41 @@ function loop(now) {
   const t = now / 1000;
   if (hitFlash > 0) hitFlash -= dt;
   if (heartRainTimer > 0) heartRainTimer -= dt;
+
+  // Dragon regular counter-attack on knights
+  bossAtkTimer -= dt;
+  if (bossAtkTimer <= 0) {
+    bossAtkTimer = 3.2;
+    const ids = Object.keys(players);
+    if (ids.length > 0) {
+      const targetId = ids[Math.floor(Math.random() * ids.length)];
+      const target = players[targetId];
+      const bossHit = 18 + bossIdx * 10;
+      target.hp -= bossHit;
+      addFloat(`💥 -${bossHit} PV`, target.x, target.y - 15, '#ff5252');
+      if (target.hp <= 0) {
+        addFloat(`💀 ${target.name} K.O!`, target.x, target.y, '#ff1744');
+        delete players[targetId];
+      }
+    }
+  }
+
+  // Dragon Fire Breath (massive AoE damage)
   nextFireIn -= dt;
   if (nextFireIn <= 3 && nextFireIn > 0) document.getElementById('fire-warn').style.display = 'block';
   if (nextFireIn <= 0) {
     document.getElementById('fire-warn').style.display = 'none';
-    fireBreathTimer = 2.0; nextFireIn = 45;
+    fireBreathTimer = 2.0; nextFireIn = 35;
     Object.keys(players).forEach(id => {
-      if (players[id].aura < 3 && players[id].lvl === 0) { addFloat("💀 Brûlé!", players[id].x, players[id].y, '#ff5252'); delete players[id]; }
+      const p = players[id];
+      const fireDmg = 85 + bossIdx * 30;
+      p.hp -= fireDmg;
+      if (p.hp <= 0) {
+        addFloat("🔥 Brûlé!", p.x, p.y, '#ff5252');
+        delete players[id];
+      } else {
+        addFloat(`-${fireDmg} PV (Survit!)`, p.x, p.y - 10, '#7dff9b');
+      }
     });
   }
   if (fireBreathTimer > 0) fireBreathTimer -= dt;
@@ -221,18 +277,18 @@ function loop(now) {
   const pList = Object.values(players);
   pList.forEach(p => {
     if (p.swing > 0) p.swing -= dt;
-    let tx = p.homeX, ty = p.homeY, spd = 110;
+    let tx = p.homeX, ty = p.homeY, spd = 120;
     if (p.state === 'charge') { tx = canvas.width / 2 + (p.homeX - canvas.width / 2) * 0.35; ty = canvas.height * 0.34; spd = 280; }
     const dx = tx - p.x, dy = ty - p.y, dist = Math.hypot(dx, dy);
     if (dist > 4) { p.x += (dx / dist) * spd * dt; p.y += (dy / dist) * spd * dt; }
     else if (p.state === 'charge') {
-      const dmg = (1 + p.lvl * 2) * (1 + p.aura * 0.1);
+      const dmg = 1 + p.lvl * 2 + p.bonusDmg;
       damageBoss(dmg, p);
-      addFloat(`-${dmg.toFixed(1)}`, p.x, p.y - 20, '#ffd54f');
+      addFloat(`-${Math.round(dmg)}`, p.x, p.y - 20, '#ffd54f');
       p.state = 'walk';
     }
     p.atkCd -= dt;
-    if (p.atkCd <= 0 && p.state === 'walk') { p.atkCd = 1.8 + Math.random() * 1.5; p.state = 'charge'; }
+    if (p.atkCd <= 0 && p.state === 'walk') { p.atkCd = 1.8 + Math.random() * 1.4; p.state = 'charge'; }
   });
 
   const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -271,12 +327,10 @@ function loop(now) {
   document.getElementById('heart-fill').style.width = Math.min(100, (heartLikes / 500) * 100) + '%';
   document.getElementById('heart-text').innerText = heartRainTimer > 0 ? `💖 PLUIE DE CŒURS (${Math.ceil(heartRainTimer)}s) !` : `❤️ ${heartLikes} / 500 • PLUIE DE CŒURS`;
 
-  const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
-  document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => `<div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>`).join('') || '<div class="board-row"><span>En attente...</span></div>';
-  const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
-  document.getElementById('top-gold').innerHTML = byGold.map((p, i) => `<div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>`).join('') || '<div class="board-row"><span>En attente...</span></div>';
-
-  requestAnimationFrame(loop);
-}
+const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
+document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => <div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>).join('') || 'En attente...';
+const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
+document.getElementById('top-gold').innerHTML = byGold.map((p, i) => <div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>).join('') || 'En attente...';
 requestAnimationFrame(loop);
-    
+}
+requestAnimationFrame(loop);         
