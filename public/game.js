@@ -10,17 +10,17 @@ const BOSSES = [
   { lvl: 'NIVEAU 2', name: 'VERDOR', maxHp: 2500000, main: '#2e7d32', dark: '#1b5e20', light: '#66bb6a', belly: '#dce775', horn: '#f1f8e9' },
   { lvl: 'NIVEAU 3', name: 'ABYSS', maxHp: 5000000, main: '#1565c0', dark: '#0d47a1', light: '#42a5f5', belly: '#80deea', horn: '#e1f5fe' }
 ];
-const LEVEL_COSTS = new Array(0, 100, 300, 800, 2000, 5000, 12000, 30000, 70000, 160000);
+const LEVEL_COSTS = new Array(0, 50, 100, 300, 800, 2000, 5000, 12000, 30000, 70000);
 const LEVEL_NAMES = ['Paysan', 'Recrue', 'Soldat', 'Chevalier', 'Acier', 'Givre', 'Argent', 'Paladin', 'Champion', 'Roi'];
 const LEVEL_COLORS = ['#8d6e63', '#78909c', '#29b6f6', '#26a69a', '#b0bec5', '#80deea', '#eceff1', '#ffd54f', '#ff7043', '#ab47bc'];
 
-let bossIdx = 0, bossHp = 1000000, heartLikes = 0, heartRainTimer = 0, fireBreathTimer = 0, nextFireIn = 35, bossAtkTimer = 3.5;
+let bossIdx = 0, bossHp = 1000000, heartLikes = 0, heartRainTimer = 0, fireBreathTimer = 0, nextFireIn = 35, bossAtkTimer = 3.2;
 let players = {}, floatTexts = [], bannerIdx = 0, hitFlash = 0, slotCounter = 0;
 const banners = [
   "💬 ÉCRIS « GO » (OU M / F) POUR COMBATTRE !",
   "❤️ 1 LIKE = +1 PV • TES 1K LIKES = +100 DÉGÂTS",
   "🪙 1 PIÈCE = +10 DÉGÂTS • ÉCRIS « LEVEL UP »",
-  "🔥 SURVIS AU SOUFFLE DU DRAGON AVEC TES PV !"
+  "🔥 PASSE NIVEAU 2 (100 🪙) POUR SURVIVRE AU FEU !"
 ];
 setInterval(() => { bannerIdx = (bannerIdx + 1) % banners.length; document.getElementById('promo-text').innerText = banners[bannerIdx]; }, 5000);
 
@@ -44,15 +44,15 @@ function spawnOrGetPlayer(userId, nickname, gender = 'M') {
     const homeX = 45 + col * ((canvas.width - 90) / 4);
     const homeY = canvas.height * 0.56 + row * 58;
     players[userId] = {
-      id: userId, name: nickname.slice(0, 10), gender, lvl: 0,
+      id: userId, name: nickname.slice(0, 10), gender: gender, lvl: 0,
       myLikes: 0, bonusDmg: 0, hp: 100, maxHp: 100, gold: 0, totalDmg: 0,
-      x: canvas.width / 2, y: canvas.height + 20, homeX, homeY,
+      x: canvas.width / 2, y: canvas.height + 20, homeX: homeX, homeY: homeY,
       state: 'walk', atkCd: 1 + Math.random() * 2, swing: 0
     };
   }
   return players[userId];
 }
-function addFloat(text, x, y, color = '#ffd54f') { floatTexts.push({ text, x, y, color, life: 1.0 }); }
+function addFloat(text, x, y, color = '#ffd54f') { floatTexts.push({ text: text, x: x, y: y, color: color, life: 1.0 }); }
 
 function damageBoss(amount, player) {
   const finalDmg = Math.round(amount * (heartRainTimer > 0 ? 2 : 1));
@@ -66,8 +66,7 @@ function damageBoss(amount, player) {
     addFloat("🎉 BOSS VAINCU !", canvas.width / 2, canvas.height * 0.28, '#7dff9b');
   }
 }
-
-socket.on('chat', (d) => {
+  socket.on('chat', (d) => {
   const txt = d.comment.trim().toUpperCase();
   const p = spawnOrGetPlayer(d.userId, d.nickname, txt === 'F' ? 'F' : 'M');
   if (txt === 'F' || txt === 'M') p.gender = txt;
@@ -76,8 +75,8 @@ socket.on('chat', (d) => {
     if (nextLvl < LEVEL_COSTS.length && p.gold >= LEVEL_COSTS[nextLvl]) {
       p.gold -= LEVEL_COSTS[nextLvl]; p.lvl = nextLvl;
       p.maxHp += 30; p.hp = p.maxHp;
-      addFloat(`⬆️ NIV ${p.lvl} (+30 PV)!`, p.x, p.y - 26, '#7dff9b');
-    } else if (nextLvl < LEVEL_COSTS.length) addFloat(`Manque ${LEVEL_COSTS[nextLvl] - p.gold} or`, p.x, p.y - 20, '#ff8a80');
+      addFloat('⬆️ NIV ' + p.lvl + ' (+30 PV)!', p.x, p.y - 26, '#7dff9b');
+    } else if (nextLvl < LEVEL_COSTS.length) addFloat('Manque ' + (LEVEL_COSTS[nextLvl] - p.gold) + ' or', p.x, p.y - 20, '#ff8a80');
   } else addFloat("⚔️ GO!", p.x, p.y - 20, '#fff');
 });
 
@@ -89,7 +88,7 @@ socket.on('like', (d) => {
   if (newMilestones > prevMilestones) {
     const gained = (newMilestones - prevMilestones) * 100;
     p.bonusDmg += gained;
-    addFloat(`🔥 1K LIKES: +${gained} DÉGÂTS!`, p.x, p.y - 32, '#ff4081');
+    addFloat('🔥 1K LIKES: +' + gained + ' DÉGÂTS!', p.x, p.y - 32, '#ff4081');
   }
   p.maxHp += d.count;
   p.hp = Math.min(p.maxHp, p.hp + d.count);
@@ -107,8 +106,8 @@ socket.on('gift', (d) => {
   const burst = d.diamonds * 250;
   damageBoss(burst, p);
   const alertBox = document.getElementById('gift-alert');
-  document.getElementById('gift-title').innerText = `🎁 MERCI ${p.name.toUpperCase()} !`;
-  document.getElementById('gift-desc').innerText = `${d.giftName} • +${addedDmg} DÉGÂTS/COUP • +${hpBonus} PV !`;
+  document.getElementById('gift-title').innerText = '🎁 MERCI ' + p.name.toUpperCase() + ' !';
+  document.getElementById('gift-desc').innerText = d.giftName + ' • +' + addedDmg + ' DÉGÂTS/COUP • +' + hpBonus + ' PV !';
   alertBox.style.display = 'block';
   setTimeout(() => { alertBox.style.display = 'none'; }, 3500);
 });
@@ -121,7 +120,7 @@ function startDemo() {
     if (Object.keys(players).length < 15) {
       const name = pool[idx % pool.length];
       const p = spawnOrGetPlayer('bot' + idx, name, idx % 2 === 0 ? 'M' : 'F');
-      p.lvl = idx % 5;
+      p.lvl = idx % 4;
       const likes = (idx % 12) * 8;
       p.myLikes = likes; p.maxHp += likes; p.hp = p.maxHp;
       addFloat("⚔️ GO!", p.x, p.y - 25, '#fff');
@@ -135,8 +134,8 @@ function startDemo() {
       if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 12; }
     }
   }, 1100);
-}
-function drawDragon(cx, y, t, boss) {
+          }
+          function drawDragon(cx, y, t, boss) {
   const breath = Math.sin(t * 3) * 4;
   const flap = Math.sin(t * 4.5) * 14;
   ctx.save();
@@ -214,7 +213,6 @@ function drawKnight(p, t) {
   ctx.fillStyle = '#ffd54f'; ctx.fillRect(-4, -2, 8, 2.5);
   ctx.restore();
 
-  // HP Bar above head
   const hpPct = Math.max(0, Math.min(1, p.hp / p.maxHp));
   ctx.fillStyle = '#222'; ctx.fillRect(p.x - 18, p.y - 27 - bob, 36, 4);
   ctx.fillStyle = hpPct > 0.4 ? '#00e676' : '#ff1744';
@@ -225,10 +223,9 @@ function drawKnight(p, t) {
   ctx.fillStyle = '#fff'; ctx.font = 'bold 8.5px Arial'; ctx.textAlign = 'center';
   ctx.fillText(p.name, p.x, p.y - 31.5 - bob);
   ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 7.5px Arial';
-  ctx.fillText(`❤️${Math.round(p.hp)} ⚔️${Math.round(1 + p.lvl * 2 + p.bonusDmg)}`, p.x, p.y + 22);
+  ctx.fillText('❤️' + Math.round(p.hp) + ' ⚔️' + Math.round(1 + p.lvl * 2 + p.bonusDmg), p.x, p.y + 22);
   ctx.restore();
-}
-
+                               }
 let lastTime = performance.now();
 function loop(now) {
   const dt = (now - lastTime) / 1000; lastTime = now;
@@ -236,7 +233,6 @@ function loop(now) {
   if (hitFlash > 0) hitFlash -= dt;
   if (heartRainTimer > 0) heartRainTimer -= dt;
 
-  // Dragon regular counter-attack on knights
   bossAtkTimer -= dt;
   if (bossAtkTimer <= 0) {
     bossAtkTimer = 3.2;
@@ -246,31 +242,29 @@ function loop(now) {
       const target = players[targetId];
       const bossHit = 18 + bossIdx * 10;
       target.hp -= bossHit;
-      addFloat(`💥 -${bossHit} PV`, target.x, target.y - 15, '#ff5252');
+      addFloat('💥 -' + bossHit + ' PV', target.x, target.y - 15, '#ff5252');
       if (target.hp <= 0) {
-        addFloat(`💀 ${target.name} K.O!`, target.x, target.y, '#ff1744');
+        addFloat('💀 ' + target.name + ' K.O!', target.x, target.y, '#ff1744');
         delete players[targetId];
       }
     }
   }
 
-  // Dragon Fire Breath (massive AoE damage)
   nextFireIn -= dt;
   if (nextFireIn <= 3 && nextFireIn > 0) document.getElementById('fire-warn').style.display = 'block';
-   if (nextFireIn <= 0) {
+  if (nextFireIn <= 0) {
     document.getElementById('fire-warn').style.display = 'none';
     fireBreathTimer = 2.0; nextFireIn = 35;
     Object.keys(players).forEach(id => {
       const p = players[id];
       if (p.lvl < 2) {
-        addFloat("🔥 Brûlé (Niv < 2)!", p.x, p.y, '#ff5252');
+        addFloat('🔥 Brûlé (Niv < 2)!', p.x, p.y, '#ff5252');
         delete players[id];
       } else {
-        addFloat("🛡️ Survit (Niv 2+)!", p.x, p.y - 10, '#7dff9b');
+        addFloat('🛡️ Survit (Niv 2+)!', p.x, p.y - 10, '#7dff9b');
       }
     });
-   }
-  
+  }
   if (fireBreathTimer > 0) fireBreathTimer -= dt;
 
   const pList = Object.values(players);
@@ -283,7 +277,7 @@ function loop(now) {
     else if (p.state === 'charge') {
       const dmg = 1 + p.lvl * 2 + p.bonusDmg;
       damageBoss(dmg, p);
-      addFloat(`-${Math.round(dmg)}`, p.x, p.y - 20, '#ffd54f');
+      addFloat('-' + Math.round(dmg), p.x, p.y - 20, '#ffd54f');
       p.state = 'walk';
     }
     p.atkCd -= dt;
@@ -322,13 +316,15 @@ function loop(now) {
 
   document.getElementById('queue-count').innerText = pList.length;
   document.getElementById('hp-fill').style.width = Math.max(0, (bossHp / BOSSES[bossIdx].maxHp) * 100) + '%';
-  document.getElementById('hp-text').innerText = `${Math.max(0, Math.round(bossHp)).toLocaleString('fr-FR')} / ${BOSSES[bossIdx].maxHp.toLocaleString('fr-FR')} PV`;
+  document.getElementById('hp-text').innerText = Math.max(0, Math.round(bossHp)).toLocaleString('fr-FR') + ' / ' + BOSSES[bossIdx].maxHp.toLocaleString('fr-FR') + ' PV';
   document.getElementById('heart-fill').style.width = Math.min(100, (heartLikes / 500) * 100) + '%';
-  document.getElementById('heart-text').innerText = heartRainTimer > 0 ? `💖 PLUIE DE CŒURS (${Math.ceil(heartRainTimer)}s) !` : `❤️ ${heartLikes} / 500 • PLUIE DE CŒURS`;
+  document.getElementById('heart-text').innerText = heartRainTimer > 0 ? '💖 PLUIE DE CŒURS (' + Math.ceil(heartRainTimer) + 's) !' : '❤️ ' + heartLikes + ' / 500 • PLUIE DE CŒURS';
 
-const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
-document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => <div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>).join('') || 'En attente...';
-const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
-document.getElementById('top-gold').innerHTML = byGold.map((p, i) => <div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>).join('') || 'En attente...';
+  const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
+  document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => '<div class="board-row"><span>' + (i + 1) + '. ' + p.name + '</span><b>' + Math.round(p.totalDmg) + '</b></div>').join('') || '<div class="board-row"><span>En attente...</span></div>';
+  const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
+  document.getElementById('top-gold').innerHTML = byGold.map((p, i) => '<div class="board-row"><span>' + (i + 1) + '. Niv' + p.lvl + ' ' + p.name + '</span><b>' + Math.round(p.gold) + '🪙</b></div>').join('') || '<div class="board-row"><span>En attente...</span></div>';
+
+  requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);         
+requestAnimationFrame(loop);
