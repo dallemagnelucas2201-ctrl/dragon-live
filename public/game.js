@@ -11,18 +11,18 @@ const BOSSES = [
   { lvl: 'NIVEAU 3', name: 'ABYSS', maxHp: 5000000, main: '#1565c0', dark: '#0d47a1', light: '#42a5f5', belly: '#80deea', horn: '#e1f5fe' }
 ];
 const LEVEL_COSTS = new Array(0, 100, 300, 800, 2000, 5000, 12000, 30000, 70000, 160000);
-const LEVEL_NAMES = new Array('Paysan', 'Recrue', 'Soldat', 'Chevalier', 'Acier', 'Givre', 'Argent', 'Paladin', 'Champion', 'Roi');
-const LEVEL_COLORS = new Array('#8d6e63', '#78909c', '#29b6f6', '#26a69a', '#b0bec5', '#80deea', '#eceff1', '#ffd54f', '#ff7043', '#ab47bc');
+const LEVEL_NAMES = ['Paysan', 'Recrue', 'Soldat', 'Chevalier', 'Acier', 'Givre', 'Argent', 'Paladin', 'Champion', 'Roi'];
+const LEVEL_COLORS = ['#8d6e63', '#78909c', '#29b6f6', '#26a69a', '#b0bec5', '#80deea', '#eceff1', '#ffd54f', '#ff7043', '#ab47bc'];
 
 let bossIdx = 0, bossHp = 1000000, heartLikes = 0, heartRainTimer = 0, fireBreathTimer = 0, nextFireIn = 45;
 let players = {}, floatTexts = [], bannerIdx = 0, hitFlash = 0;
-const banners = new Array(
+const banners = [
   "💬 ÉCRIS « GO » (OU M / F) POUR COMBATTRE !",
   "❤️ LIKE L'ÉCRAN = AURA DE PUISSANCE (+1 DÉGÂT)",
   "🪙 TES DÉGÂTS = OR • ÉCRIS « LEVEL UP »",
   "🎁 CADEAU = NIVEAU OFFERT + GROS DÉGÂTS"
-);
-setInterval(() => { bannerIdx = (bannerIdx + 1) % banners.length; document.getElementById('promo-text').innerText = banners.at(bannerIdx); }, 5000);
+];
+setInterval(() => { bannerIdx = (bannerIdx + 1) % banners.length; document.getElementById('promo-text').innerText = banners[bannerIdx]; }, 5000);
 
 function connectLive() {
   const user = document.getElementById('tt-user').value.trim();
@@ -55,9 +55,9 @@ function damageBoss(amount, player) {
   if (player) { player.totalDmg += finalDmg; player.gold += finalDmg; player.swing = 0.25; }
   if (bossHp <= 0) {
     bossIdx = (bossIdx + 1) % BOSSES.length;
-    bossHp = BOSSES.at(bossIdx).maxHp;
-    document.getElementById('boss-lvl').innerText = BOSSES.at(bossIdx).lvl;
-    document.getElementById('boss-name').innerText = BOSSES.at(bossIdx).name;
+    bossHp = BOSSES[bossIdx].maxHp;
+    document.getElementById('boss-lvl').innerText = BOSSES[bossIdx].lvl;
+    document.getElementById('boss-name').innerText = BOSSES[bossIdx].name;
     addFloat("🎉 BOSS VAINCU !", canvas.width / 2, canvas.height * 0.28, '#7dff9b');
   }
 }
@@ -68,10 +68,10 @@ socket.on('chat', (d) => {
   if (txt === 'F' || txt === 'M') p.gender = txt;
   if (txt.includes('LEVEL') || txt.includes('UP')) {
     const nextLvl = p.lvl + 1;
-    if (nextLvl < LEVEL_COSTS.length && p.gold >= LEVEL_COSTS.at(nextLvl)) {
-      p.gold -= LEVEL_COSTS.at(nextLvl); p.lvl = nextLvl;
-      addFloat(`⬆️ NIV ${p.lvl} ${LEVEL_NAMES.at(p.lvl)}!`, p.x, p.y - 24, '#7dff9b');
-    } else if (nextLvl < LEVEL_COSTS.length) addFloat(`Manque ${LEVEL_COSTS.at(nextLvl) - p.gold} or`, p.x, p.y - 18, '#ff8a80');
+    if (nextLvl < LEVEL_COSTS.length && p.gold >= LEVEL_COSTS[nextLvl]) {
+      p.gold -= LEVEL_COSTS[nextLvl]; p.lvl = nextLvl;
+      addFloat(`⬆️ NIV ${p.lvl} ${LEVEL_NAMES[p.lvl]}!`, p.x, p.y - 24, '#7dff9b');
+    } else if (nextLvl < LEVEL_COSTS.length) addFloat(`Manque ${LEVEL_COSTS[nextLvl] - p.gold} or`, p.x, p.y - 18, '#ff8a80');
   } else addFloat("⚔️ GO!", p.x, p.y - 18, '#fff');
 });
 
@@ -89,7 +89,7 @@ socket.on('gift', (d) => {
   damageBoss(burst, p);
   const alertBox = document.getElementById('gift-alert');
   document.getElementById('gift-title').innerText = `🎁 MERCI ${p.name.toUpperCase()} !`;
-  document.getElementById('gift-desc').innerText = `${d.giftName} • Niv ${p.lvl} (${LEVEL_NAMES.at(p.lvl)}) • -${burst} PV !`;
+  document.getElementById('gift-desc').innerText = `${d.giftName} • Niv ${p.lvl} (${LEVEL_NAMES[p.lvl]}) • -${burst} PV !`;
   alertBox.style.display = 'block';
   setTimeout(() => { alertBox.style.display = 'none'; }, 3500);
 });
@@ -103,13 +103,12 @@ function startDemo() {
   setInterval(() => {
     const keys = Object.keys(players);
     if (!keys.length) return;
-    players[keys.at(Math.floor(Math.random() * keys.length))].aura += 2;
+    players[keys[Math.floor(Math.random() * keys.length)]].aura += 2;
     heartLikes += 15;
     if (heartLikes >= 500) { heartLikes = 0; heartRainTimer = 12; }
   }, 800);
-}
-
-function drawDragon(cx, y, t, boss) {
+  }
+ function drawDragon(cx, y, t, boss) {
   const breath = Math.sin(t * 3) * 4;
   const flap = Math.sin(t * 4.5) * 14;
   ctx.save();
@@ -159,7 +158,7 @@ function drawDragon(cx, y, t, boss) {
 
 function drawKnight(p, t) {
   const bob = Math.sin(t * 7 + p.x) * 2;
-  const col = LEVEL_COLORS.at(p.lvl) || '#8d6e63';
+  const col = LEVEL_COLORS[p.lvl] || '#8d6e63';
   ctx.save();
   if (p.aura >= 3) {
     ctx.strokeStyle = p.lvl >= 7 ? '#ffd54f' : '#ff9800';
@@ -192,68 +191,80 @@ function drawKnight(p, t) {
   ctx.fillText(p.name, p.x, p.y - 26.5);
   ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 8px Arial';
   ctx.fillText(`Niv${p.lvl} ⚡${p.aura}`, p.x, p.y + 21);
-   ctx.restore();
+  ctx.restore();
 }
+
 let lastTime = performance.now();
 function loop(now) {
-const dt = (now - lastTime) / 1000; lastTime = now;
-const t = now / 1000;
-if (hitFlash > 0) hitFlash -= dt;
-if (heartRainTimer > 0) heartRainTimer -= dt;
-nextFireIn -= dt;
-if (nextFireIn <= 3 && nextFireIn > 0) document.getElementById('fire-warn').style.display = 'block';
-if (nextFireIn <= 0) {
-document.getElementById('fire-warn').style.display = 'none';
-fireBreathTimer = 2.0; nextFireIn = 45;
-Object.keys(players).forEach(id => {
-if (players[id].aura < 3 && players[id].lvl === 0) { addFloat("💀 Brûlé!", players[id].x, players[id].y, '#ff5252'); delete players[id]; }
-});
-}
-if (fireBreathTimer > 0) fireBreathTimer -= dt;
-const pList = Object.values(players);
-pList.forEach(p => {
-if (p.swing > 0) p.swing -= dt;
-p.atkCd -= dt;
-if (p.atkCd <= 0) {
-p.atkCd = 1.0;
-const dmg = (1 + p.lvl * 2) * (1 + p.aura * 0.1);
-damageBoss(dmg, p);
-if (Math.random() < 0.4) addFloat(-${dmg.toFixed(1)}, canvas.width * 0.35 + Math.random() * (canvas.width * 0.3), canvas.height * 0.22 + Math.random() * 35, '#ffd54f');
-}
-});
-const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-bgGrad.addColorStop(0, '#231934'); bgGrad.addColorStop(0.45, '#352847'); bgGrad.addColorStop(1, '#272033');
-ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
-for (let gx = 0; gx < canvas.width; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, canvas.height * 0.42); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
-for (let gy = canvas.height * 0.42; gy < canvas.height; gy += 35) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
-const gateY = canvas.height * 0.46;
-ctx.strokeStyle = '#ffb300'; ctx.lineWidth = 4;
-ctx.beginPath(); ctx.moveTo(15, gateY); ctx.lineTo(canvas.width - 15, gateY); ctx.stroke();
-for (let bx = 25; bx < canvas.width - 20; bx += 22) {
-ctx.fillStyle = '#ffd54f'; ctx.fillRect(bx - 2, gateY - 12, 4, 24);
-}
-ctx.strokeStyle = 'rgba(255, 193, 7, 0.3)'; ctx.lineWidth = 2;
-for (let i = 1; i <= 2; i++) { const y = gateY + i * (canvas.height * 0.17); ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(canvas.width - 20, y); ctx.stroke(); }
-drawDragon(canvas.width / 2, canvas.height * 0.23, t, BOSSES.at(bossIdx));
+  const dt = (now - lastTime) / 1000; lastTime = now;
+  const t = now / 1000;
+  if (hitFlash > 0) hitFlash -= dt;
+  if (heartRainTimer > 0) heartRainTimer -= dt;
+  nextFireIn -= dt;
+  if (nextFireIn <= 3 && nextFireIn > 0) document.getElementById('fire-warn').style.display = 'block';
+  if (nextFireIn <= 0) {
+    document.getElementById('fire-warn').style.display = 'none';
+    fireBreathTimer = 2.0; nextFireIn = 45;
+    Object.keys(players).forEach(id => {
+      if (players[id].aura < 3 && players[id].lvl === 0) { addFloat("💀 Brûlé!", players[id].x, players[id].y, '#ff5252'); delete players[id]; }
+    });
+  }
+  if (fireBreathTimer > 0) fireBreathTimer -= dt;
 
-if (fireBreathTimer > 0) {
-const grad = ctx.createLinearGradient(canvas.width / 2, canvas.height * 0.23, canvas.width / 2, canvas.height);
-grad.addColorStop(0, 'rgba(255, 87, 34, 0.92)'); grad.addColorStop(1, 'rgba(255, 193, 7, 0.1)');
-ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(canvas.width / 2 - 22, canvas.height * 0.23); ctx.lineTo(20, canvas.height); ctx.lineTo(canvas.width - 20, canvas.height); ctx.lineTo(canvas.width / 2 + 22, canvas.height * 0.23); ctx.fill();
+  const pList = Object.values(players);
+  pList.forEach(p => {
+    if (p.swing > 0) p.swing -= dt;
+    p.atkCd -= dt;
+    if (p.atkCd <= 0) {
+      p.atkCd = 1.0;
+      const dmg = (1 + p.lvl * 2) * (1 + p.aura * 0.1);
+      damageBoss(dmg, p);
+      if (Math.random() < 0.4) addFloat(`-${dmg.toFixed(1)}`, canvas.width * 0.35 + Math.random() * (canvas.width * 0.3), canvas.height * 0.22 + Math.random() * 35, '#ffd54f');
+    }
+  });
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bgGrad.addColorStop(0, '#231934'); bgGrad.addColorStop(0.45, '#352847'); bgGrad.addColorStop(1, '#272033');
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+  for (let gx = 0; gx < canvas.width; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, canvas.height * 0.42); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
+  for (let gy = canvas.height * 0.42; gy < canvas.height; gy += 35) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
+
+  const gateY = canvas.height * 0.46;
+  ctx.strokeStyle = '#ffb300'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(15, gateY); ctx.lineTo(canvas.width - 15, gateY); ctx.stroke();
+  for (let bx = 25; bx < canvas.width - 20; bx += 22) {
+    ctx.fillStyle = '#ffd54f'; ctx.fillRect(bx - 2, gateY - 12, 4, 24);
+  }
+  ctx.strokeStyle = 'rgba(255, 193, 7, 0.3)'; ctx.lineWidth = 2;
+  for (let i = 1; i <= 2; i++) { const y = gateY + i * (canvas.height * 0.17); ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(canvas.width - 20, y); ctx.stroke(); }
+
+  drawDragon(canvas.width / 2, canvas.height * 0.23, t, BOSSES[bossIdx]);
+
+  if (fireBreathTimer > 0) {
+    const grad = ctx.createLinearGradient(canvas.width / 2, canvas.height * 0.23, canvas.width / 2, canvas.height);
+    grad.addColorStop(0, 'rgba(255, 87, 34, 0.92)'); grad.addColorStop(1, 'rgba(255, 193, 7, 0.1)');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(canvas.width / 2 - 22, canvas.height * 0.23); ctx.lineTo(20, canvas.height); ctx.lineTo(canvas.width - 20, canvas.height); ctx.lineTo(canvas.width / 2 + 22, canvas.height * 0.23); ctx.fill();
+  }
+
+  pList.sort((a, b) => a.y - b.y).forEach(p => drawKnight(p, t));
+
+  floatTexts.forEach(ft => { ft.y -= 26 * dt; ft.life -= dt; ctx.globalAlpha = Math.max(0, ft.life); ctx.fillStyle = ft.color; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); ctx.globalAlpha = 1; });
+  floatTexts = floatTexts.filter(ft => ft.life > 0);
+
+  document.getElementById('queue-count').innerText = pList.length;
+  document.getElementById('hp-fill').style.width = Math.max(0, (bossHp / BOSSES[bossIdx].maxHp) * 100) + '%';
+  document.getElementById('hp-text').innerText = `${Math.max(0, Math.round(bossHp)).toLocaleString('fr-FR')} / ${BOSSES[bossIdx].maxHp.toLocaleString('fr-FR')} PV`;
+  document.getElementById('heart-fill').style.width = Math.min(100, (heartLikes / 500) * 100) + '%';
+  document.getElementById('heart-text').innerText = heartRainTimer > 0 ? `💖 PLUIE DE CŒURS (${Math.ceil(heartRainTimer)}s) !` : `❤️ ${heartLikes} / 500 • PLUIE DE CŒURS`;
+
+  const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
+  document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => `<div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>`).join('') || '<div class="board-row"><span>En attente...</span></div>';
+  const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
+  document.getElementById('top-gold').innerHTML = byGold.map((p, i) => `<div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>`).join('') || '<div class="board-row"><span>En attente...</span></div>';
+
+  requestAnimationFrame(loop);
 }
-pList.sort((a, b) => a.y - b.y).forEach(p => drawKnight(p, t));
-floatTexts.forEach(ft => { ft.y -= 26 * dt; ft.life -= dt; ctx.globalAlpha = Math.max(0, ft.life); ctx.fillStyle = ft.color; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); ctx.globalAlpha = 1; });
-floatTexts = floatTexts.filter(ft => ft.life > 0);
-document.getElementById('queue-count').innerText = pList.length;
-document.getElementById('hp-fill').style.width = Math.max(0, (bossHp / BOSSES.at(bossIdx).maxHp) * 100) + '%';
-document.getElementById('hp-text').innerText = ${Math.max(0, Math.round(bossHp)).toLocaleString('fr-FR')} / ${BOSSES.at(bossIdx).maxHp.toLocaleString('fr-FR')} PV;
-document.getElementById('heart-fill').style.width = Math.min(100, (heartLikes / 500) * 100) + '%';
-document.getElementById('heart-text').innerText = heartRainTimer > 0 ? 💖 PLUIE DE CŒURS (${Math.ceil(heartRainTimer)}s) ! : ❤️ ${heartLikes} / 500 • PLUIE DE CŒURS;
-const byDmg = [...pList].sort((a, b) => b.totalDmg - a.totalDmg).slice(0, 3);
-document.getElementById('top-dmg').innerHTML = byDmg.map((p, i) => <div class="board-row"><span>${i + 1}. ${p.name}</span><b>${Math.round(p.totalDmg)}</b></div>).join('') || 'En attente...';
-const byGold = [...pList].sort((a, b) => b.gold - a.gold).slice(0, 3);
-document.getElementById('top-gold').innerHTML = byGold.map((p, i) => <div class="board-row"><span>${i + 1}. Niv${p.lvl} ${p.name}</span><b>${Math.round(p.gold)}🪙</b></div>).join('') || 'En attente...';
 requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
+    
