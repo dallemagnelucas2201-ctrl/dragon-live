@@ -10,10 +10,6 @@ const io = new Server(server);
 app.use(express.static('public'));
 
 // Clé gratuite EulerStream pour débloquer TikTok depuis Render
-if (SignConfig) {
-  SignConfig.apiKey = 'euler_ZWY1NjUxZDZkNTBmYzY3ZDg4MzgzNWY0NzVjOWM1NzE1MTE4MjE1ZDFhMzcyMTc3MzEzMjUw';
-}
-
 let tiktokConnection = null;
 
 io.on('connection', (socket) => {
